@@ -91,7 +91,7 @@ jobs:
           echo "sdk_filename=${SDK_FILENAME}" >> "$GITHUB_OUTPUT"
           echo "sdk_dir=${SDK_FILENAME%.tar.*}"  >> "$GITHUB_OUTPUT"
 
-          wget -q --show-progress "${BASE_URL}/${SDK_FILENAME}"
+          wget -q "${BASE_URL}/${SDK_FILENAME}"
 
           # Decompress — handle both .xz and .zst transparently.
           case "${SDK_FILENAME}" in
