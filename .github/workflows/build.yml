@@ -167,13 +167,14 @@ jobs:
 
           ./scripts/feeds update packages luci luci_opensoho_pkg
           ./scripts/feeds install -a -p luci_opensoho_pkg
-          ./scripts/feeds install luci-base rpcd
+          ./scripts/feeds install ucode luci-base rpcd
 
       # ── 2g. Generate .config ──────────────────────────────────────────────
       - name: Configure build
         working-directory: sdk
         run: |
           # Enable only the packages that are directly relevant to this build.
+          echo "CONFIG_PACKAGE_ucode=m"     >> .config
           echo "CONFIG_PACKAGE_luci-base=m" >> .config
           echo "CONFIG_PACKAGE_rpcd=m"      >> .config
           echo "CONFIG_PACKAGE_${PKG_NAME}=m" >> .config
@@ -181,11 +182,27 @@ jobs:
 
           make defconfig 2>&1 | grep -v "^#" | head -20 || true
 
-      # ── 2h. Build luci-app-opensoho ───────────────────────────────────────
-      # luci-app-opensoho is a pure Lua/JSON package (PKGARCH:=all, empty
-      # Build/Prepare and Build/Compile). The SDK just copies files into the
-      # package staging dir and assembles the APK — no C compilation occurs,
-      # so no headers need to be pre-staged.
+      # ── 2h. Pre-build ucode ───────────────────────────────────────────────
+      # lucihttp (pulled in as luci-base → lucihttp) is a C package that
+      # #includes <ucode/module.h>.  That header is only staged after ucode
+      # itself is compiled.  lua.h is NOT needed here — it is pre-staged by
+      # the SDK toolchain, and make package/lua/compile has no compile step.
+      - name: Pre-build ucode
+        working-directory: sdk
+        run: |
+          PKG_PATH=$(find package -mindepth 1 -maxdepth 4 -name "ucode" \
+                       \( -type d -o -type l \) ! -path '*/.git/*' 2>/dev/null | head -1)
+          if [[ -z "${PKG_PATH}" ]]; then
+            echo "::error::ucode not found under package/ — was feeds install successful?"
+            exit 1
+          fi
+          echo "Building ucode from ${PKG_PATH}"
+          make "${PKG_PATH}/compile" V=s -j$(nproc) 2>&1 | tee /tmp/ucode.log
+          if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+            echo "::error::ucode build failed — last 40 lines:"
+            tail -40 /tmp/ucode.log
+            exit 1
+          fi
       - name: Build luci-app-opensoho package
         working-directory: sdk
         run: |
