@@ -20,7 +20,10 @@ define Package/luci-app-opensoho
   MAINTAINER:=Your Name <your.email@example.com>
   # rpcd is required for the ACL file to take effect (UCI access from LuCI).
   # luci-compat is NOT listed — the controller uses the modern API (no module()).
-  DEPENDS:=+luci-base +opensoho +rpcd
+  # luci-compat is required for the old-style Lua CBI framework (Map, TypedSection,
+  # entry, cbi) and for nixio.fs used in the controller.  luci-base alone does not
+  # include these on OpenWrt 18.06+.
+  DEPENDS:=+luci-base +luci-compat +opensoho +rpcd
   LICENSE:=GPL-2.0-only
   # Pure Lua + JSON — no compiled objects, one package works on all arches.
   PKGARCH:=all

@@ -198,7 +198,18 @@ jobs:
         run: |
           for pkg in lua ucode; do
             echo "--- building ${pkg} ---"
-            make "package/${pkg}/compile" V=s -j$(nproc) 2>&1 | tee "/tmp/${pkg}.log"
+            # ./scripts/feeds install places packages at package/feeds/<feedname>/<pkg>,
+            # NOT at package/<pkg>.  The make shorthand "package/<name>/compile" only
+            # resolves direct children of package/, so it fails for feed-installed pkgs.
+            # Find whichever path actually exists before calling make.
+            PKG_PATH=$(find package -mindepth 1 -maxdepth 3 -type d -name "${pkg}" \
+                         ! -path '*/.git/*' 2>/dev/null | head -1)
+            if [[ -z "${PKG_PATH}" ]]; then
+              echo "::error::Cannot find package directory for '${pkg}' — was 'feeds install' successful?"
+              exit 1
+            fi
+            echo "Resolved ${pkg} → ${PKG_PATH}/compile"
+            make "${PKG_PATH}/compile" V=s -j$(nproc) 2>&1 | tee "/tmp/${pkg}.log"
             if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
               echo "::error::${pkg} build failed — last 40 lines:"
               tail -40 "/tmp/${pkg}.log"
