@@ -167,19 +167,13 @@ jobs:
 
           ./scripts/feeds update packages luci luci_opensoho_pkg
           ./scripts/feeds install -a -p luci_opensoho_pkg
-          # Install lucihttp's compile-time deps from the standard feeds so
-          # that lua.h and ucode/module.h are present in the staging dir when
-          # lucihttp (pulled in as a transitive dep of luci-base) is compiled.
-          ./scripts/feeds install lua ucode luci-base rpcd
+          ./scripts/feeds install luci-base rpcd
 
       # ── 2g. Generate .config ──────────────────────────────────────────────
       - name: Configure build
         working-directory: sdk
         run: |
-          # Enable compile-time deps so make resolves the build order and
-          # has their headers staged before lucihttp tries to include them.
-          echo "CONFIG_PACKAGE_lua=m"       >> .config
-          echo "CONFIG_PACKAGE_ucode=m"     >> .config
+          # Enable only the packages that are directly relevant to this build.
           echo "CONFIG_PACKAGE_luci-base=m" >> .config
           echo "CONFIG_PACKAGE_rpcd=m"      >> .config
           echo "CONFIG_PACKAGE_${PKG_NAME}=m" >> .config
@@ -187,40 +181,11 @@ jobs:
 
           make defconfig 2>&1 | grep -v "^#" | head -20 || true
 
-      # ── 2h. Pre-build lucihttp's compile-time dependencies ───────────────
-      # lucihttp (a transitive dep: luci-app-opensoho → luci-base → lucihttp)
-      # is a C package that #includes lua.h and ucode/module.h.  Those headers
-      # are staged only after lua and ucode themselves are compiled.  Running
-      # them as explicit sequential steps guarantees their headers are present
-      # in staging_dir/target-.../usr/include/ before lucihttp starts.
-      - name: Pre-build lua and ucode
-        working-directory: sdk
-        run: |
-          for pkg in lua ucode; do
-            echo "--- building ${pkg} ---"
-            # ./scripts/feeds install places packages at package/feeds/<feedname>/<pkg>,
-            # NOT at package/<pkg>.  The make shorthand "package/<name>/compile" only
-            # resolves direct children of package/, so it fails for feed-installed pkgs.
-            # Find whichever path actually exists before calling make.
-            PKG_PATH=$(find package -mindepth 1 -maxdepth 3 -type d -name "${pkg}" \
-                         ! -path '*/.git/*' 2>/dev/null | head -1)
-            if [[ -z "${PKG_PATH}" ]]; then
-              echo "::error::Cannot find package directory for '${pkg}' — was 'feeds install' successful?"
-              exit 1
-            fi
-            echo "Resolved ${pkg} → ${PKG_PATH}/compile"
-            make "${PKG_PATH}/compile" V=s -j$(nproc) 2>&1 | tee "/tmp/${pkg}.log"
-            if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-              echo "::error::${pkg} build failed — last 40 lines:"
-              tail -40 "/tmp/${pkg}.log"
-              exit 1
-            fi
-          done
-
-      # ── 2i. Build luci-app-opensoho ───────────────────────────────────────
-      # luci-app-opensoho is a pure Lua/JSON package (PKGARCH:=all) — there is
-      # nothing to compile.  The SDK just assembles the files into an APK.
-      # lua and ucode are already staged above, so lucihttp will compile cleanly.
+      # ── 2h. Build luci-app-opensoho ───────────────────────────────────────
+      # luci-app-opensoho is a pure Lua/JSON package (PKGARCH:=all, empty
+      # Build/Prepare and Build/Compile). The SDK just copies files into the
+      # package staging dir and assembles the APK — no C compilation occurs,
+      # so no headers need to be pre-staged.
       - name: Build luci-app-opensoho package
         working-directory: sdk
         run: |
