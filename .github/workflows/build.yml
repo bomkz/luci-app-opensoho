@@ -1,6 +1,5 @@
 name: Build
 
-
 # ─── Triggers ────────────────────────────────────────────────────────────────
 on:
   workflow_dispatch:
@@ -188,9 +187,29 @@ jobs:
 
           make defconfig 2>&1 | grep -v "^#" | head -20 || true
 
-      # ── 2h. Build luci-app-opensoho ───────────────────────────────────────
+      # ── 2h. Pre-build lucihttp's compile-time dependencies ───────────────
+      # lucihttp (a transitive dep: luci-app-opensoho → luci-base → lucihttp)
+      # is a C package that #includes lua.h and ucode/module.h.  Those headers
+      # are staged only after lua and ucode themselves are compiled.  Running
+      # them as explicit sequential steps guarantees their headers are present
+      # in staging_dir/target-.../usr/include/ before lucihttp starts.
+      - name: Pre-build lua and ucode
+        working-directory: sdk
+        run: |
+          for pkg in lua ucode; do
+            echo "--- building ${pkg} ---"
+            make "package/${pkg}/compile" V=s -j$(nproc) 2>&1 | tee "/tmp/${pkg}.log"
+            if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+              echo "::error::${pkg} build failed — last 40 lines:"
+              tail -40 "/tmp/${pkg}.log"
+              exit 1
+            fi
+          done
+
+      # ── 2i. Build luci-app-opensoho ───────────────────────────────────────
       # luci-app-opensoho is a pure Lua/JSON package (PKGARCH:=all) — there is
       # nothing to compile.  The SDK just assembles the files into an APK.
+      # lua and ucode are already staged above, so lucihttp will compile cleanly.
       - name: Build luci-app-opensoho package
         working-directory: sdk
         run: |
@@ -205,7 +224,7 @@ jobs:
             exit 1
           fi
 
-      # ── 2i. Collect artifacts ─────────────────────────────────────────────
+      # ── 2j. Collect artifacts ─────────────────────────────────────────────
       # PKGARCH:=all means the .apk lands under bin/packages/<arch>/…/all/
       # rather than a target-specific subdirectory, so search the full tree.
       - name: Collect built packages
@@ -229,7 +248,7 @@ jobs:
           echo "Built packages:"
           ls -lh artifacts/
 
-      # ── 2j. Upload ────────────────────────────────────────────────────────
+      # ── 2k. Upload ────────────────────────────────────────────────────────
       - name: Upload packages
         uses: actions/upload-artifact@v4
         with:
@@ -239,7 +258,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # ── 2k. Job summary ───────────────────────────────────────────────────
+      # ── 2l. Job summary ───────────────────────────────────────────────────
       - name: Write job summary
         if: always()
         run: |
