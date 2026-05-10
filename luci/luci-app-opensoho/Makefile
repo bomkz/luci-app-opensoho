@@ -29,6 +29,10 @@ define Package/luci-app-opensoho/description
   in the OpenWrt admin panel.
 endef
 
+# Pure Lua/files package — no C source to compile.
+define Build/Compile
+endef
+
 define Package/luci-app-opensoho/install
 	# Lua controller
 	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller
