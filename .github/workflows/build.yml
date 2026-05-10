@@ -24,6 +24,9 @@ on:
         default: '64'
 
 # ─── Global defaults ─────────────────────────────────────────────────────────
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 defaults:
   run:
     shell: bash
@@ -167,11 +170,21 @@ jobs:
 
           ./scripts/feeds update packages luci luci_opensoho_pkg
           ./scripts/feeds install -a -p luci_opensoho_pkg
+          # Install lucihttp's compile-time deps from the standard feeds so
+          # that lua.h and ucode/module.h are present in the staging dir when
+          # lucihttp (pulled in as a transitive dep of luci-base) is compiled.
+          ./scripts/feeds install lua ucode luci-base rpcd
 
       # ── 2g. Generate .config ──────────────────────────────────────────────
       - name: Configure build
         working-directory: sdk
         run: |
+          # Enable compile-time deps so make resolves the build order and
+          # has their headers staged before lucihttp tries to include them.
+          echo "CONFIG_PACKAGE_lua=m"       >> .config
+          echo "CONFIG_PACKAGE_ucode=m"     >> .config
+          echo "CONFIG_PACKAGE_luci-base=m" >> .config
+          echo "CONFIG_PACKAGE_rpcd=m"      >> .config
           echo "CONFIG_PACKAGE_${PKG_NAME}=m" >> .config
           echo "CONFIG_USE_APK=y" >> .config
 
