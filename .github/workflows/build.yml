@@ -157,17 +157,10 @@ jobs:
           #
           # Preserve the pinned commits from the SDK's original file so package
           # versions stay aligned with this OpenWrt release.
-          grep -E '^src-(git|gz) packages ' feeds.conf.default \
-            > feeds.conf.default.new
-          grep -E '^src-(git|gz) luci ' feeds.conf.default \
-            >> feeds.conf.default.new
-          echo "src-link luci_opensoho_pkg ${{ github.workspace }}/src/luci-app-opensoho/luci" \
-            >> feeds.conf.default.new
-          mv feeds.conf.default.new feeds.conf.default
 
           ./scripts/feeds update packages luci luci_opensoho_pkg
           ./scripts/feeds install -a -p luci_opensoho_pkg
-          ./scripts/feeds install ucode luci-base rpcd
+          ./scripts/feeds install -a
 
       # ── 2g. Generate .config ──────────────────────────────────────────────
       - name: Configure build
