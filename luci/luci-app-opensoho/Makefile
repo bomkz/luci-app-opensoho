@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-#
-# Copyright (C) 2024 Your Name <your.email@example.com>
-#
 
 include $(TOPDIR)/rules.mk
 
@@ -16,8 +13,8 @@ define Package/luci-app-opensoho
   CATEGORY:=LuCI
   SUBMENU:=3. Applications
   TITLE:=LuCI interface for OpenSOHO
-  URL:=https://github.com/rubenbe/opensoho
-  MAINTAINER:=Your Name <your.email@example.com>
+  URL:=https://github.com/bomkz/luci-app-opensoho
+  MAINTAINER:=Bomkz Ookami<bomkz.f45a@outlook.com>
   DEPENDS:=+luci-base +luci-compat +opensoho +rpcd
   LICENSE:=GPL-2.0-only
   PKGARCH:=all
