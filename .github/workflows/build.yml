@@ -159,6 +159,7 @@ jobs:
           # versions stay aligned with this OpenWrt release.
 
           ./scripts/feeds update packages luci luci_opensoho_pkg
+          ./scripts/feeds update -a
           ./scripts/feeds install -a -p luci_opensoho_pkg
           ./scripts/feeds install -a
 
