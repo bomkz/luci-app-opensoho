@@ -1,0 +1,11 @@
+{
+  "luci-app-opensoho": {
+    "description": "Grant LuCI access to the OpenSOHO UCI configuration",
+    "read": {
+      "uci": [ "opensoho" ]
+    },
+    "write": {
+      "uci": [ "opensoho" ]
+    }
+  }
+}
